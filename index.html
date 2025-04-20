@@ -11,9 +11,14 @@
     <h1>Chord to Roman Numeral</h1>
     <label for="chordInput">Lead Sheet Chords:</label>
     <textarea id="chordInput" placeholder="e.g. C F G7 Am"></textarea>
+    <div>
+      <label><input type="radio" name="sort" value="alphabetical" checked> キーアルファベット順</label>
+      <label><input type="radio" name="sort" value="fifths"> キー五度圏順</label>
+      <label><input type="radio" name="sort" value="score"> ローマ数字列の調号少ない順</label>
+    </div>
     <div class="output" id="romanOutput"></div>
   </div>
-
-  <script src="./app.js"></script>
+  
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
