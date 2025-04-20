@@ -18,9 +18,9 @@ function generateAllRomanNumerals(chords) {
     for (const acc of accidentals) {
       for (const mode of modes) {
         const key = tonic + acc;
-        const displayKey = formatKeyName(tonic + acc) + ' ' + mode;
+        const displayKey = formatKeyName(key) + ' ' + mode;
         const romanized = chords.map(chord => convertToRomanInKey(chord, key, mode)).join(' ');
-        results.push(displayKey + ': ' + romanized);
+        results.push(displayKey + ':\n  ' + romanized);
       }
     }
   }
@@ -35,7 +35,6 @@ function formatKeyName(key) {
 function convertToRomanInKey(chord, key, mode) {
   const chromatic = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-  // 音名を半音インデックスに変換
   function pitchIndex(note) {
     const enharmonics = {
       'Cb': 'B', 'Db': 'C#', 'Eb': 'D#', 'Fb': 'E', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#',
@@ -44,27 +43,35 @@ function convertToRomanInKey(chord, key, mode) {
     return chromatic.indexOf(enharmonics[note] || note);
   }
 
-  // メジャー／ナチュラルマイナーの度数配列
-  const scaleIntervals = mode === 'major'
-    ? [0, 2, 4, 5, 7, 9, 11]
-    : [0, 2, 3, 5, 7, 8, 10];
+  function romanize(note) {
+    const tonicIndex = pitchIndex(key);
+    const noteIndex = pitchIndex(note);
+    const interval = (noteIndex - tonicIndex + 12) % 12;
+    const roughDegree = ['I', '♭II', 'II', '♭III', 'III', 'IV', '#IV', 'V', '♭VI', 'VI', '♭VII', 'VII'];
+    return roughDegree[interval];
+  }
 
-  const numeralSymbols = mode === 'major'
-    ? ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°']
-    : ['i', 'ii', 'III', 'iv', 'v', 'VI', 'VII'];
+  // ルート音を抽出
+  const rootMatch = chord.match(/^[A-G](#|b)?/);
+  if (!rootMatch) return chord;
+  const rootNote = rootMatch[0];
+  const rootRoman = romanize(rootNote);
 
-  const rootNote = chord.replace(/[^A-G#b]/g, '');
-  const isSeventh = /7/.test(chord);
-  const tonicIndex = pitchIndex(key);
-  const chordIndex = pitchIndex(rootNote);
-  if (tonicIndex === -1 || chordIndex === -1) return '?';
+  // ベース音を抽出（on表記 or /表記）
+  const onMatch = chord.match(/(?:on\s*|\/\s*)([A-G](#|b)?)/);
+  let bassRoman = null;
+  if (onMatch) {
+    const bassNote = onMatch[1];
+    bassRoman = romanize(bassNote);
+  }
 
-  const interval = (chordIndex - tonicIndex + 12) % 12;
-  const degree = scaleIntervals.indexOf(interval);
+  // クオリティ部分（ルート音・on記法以外）を取り出す
+  const qualityStart = rootNote.length;
+  const qualityEnd = onMatch ? onMatch.index : chord.length;
+  const quality = chord.slice(qualityStart, qualityEnd).trim();
 
-  if (degree === -1) return '?';
-
-  let numeral = numeralSymbols[degree];
-  if (isSeventh) numeral += '7';
-  return numeral;
+  // 組み立て
+  return bassRoman
+    ? `${rootRoman}${quality}/${bassRoman}`
+    : `${rootRoman}${quality}`;
 }
