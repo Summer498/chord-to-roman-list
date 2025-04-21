@@ -1,16 +1,16 @@
 // src/romanizer.ts
 function pitchIndex(note) {
-  const chromatic = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  const chromatic = ["C", "C\u266F", "D", "D\u266F", "E", "F", "F\u266F", "G", "G\u266F", "A", "A\u266F", "B"];
   const enharmonics = {
-    "Cb": "B",
-    "Db": "C#",
-    "Eb": "D#",
-    "Fb": "E",
-    "Gb": "F#",
-    "Ab": "G#",
-    "Bb": "A#",
-    "E#": "F",
-    "B#": "C"
+    "C\u266D": "B",
+    "D\u266D": "C\u266F",
+    "E\u266D": "D\u266F",
+    "F\u266D": "E",
+    "G\u266D": "F\u266F",
+    "A\u266D": "G\u266F",
+    "B\u266D": "A\u266F",
+    "E\u266F": "F",
+    "\u266D\u266F": "C"
   };
   return chromatic.indexOf(enharmonics[note] ?? note);
 }
@@ -18,18 +18,18 @@ function romanize(note, key) {
   const tonicIndex = pitchIndex(key);
   const noteIndex = pitchIndex(note);
   const interval = (noteIndex - tonicIndex + 12) % 12;
-  const roughDegree = ["I", "\u266DII", "II", "\u266DIII", "III", "IV", "#IV", "V", "\u266DVI", "VI", "\u266DVII", "VII"];
+  const roughDegree = ["I", "\u266DII", "II", "\u266DIII", "III", "IV", "\u266FIV", "V", "\u266DVI", "VI", "\u266DVII", "VII"];
   return roughDegree[interval];
 }
 function formatKeyName(key) {
-  return key.replace("#", "\u266F").replace("b", "\u266D");
+  return key.replace("#", "\u266F").replace("\u266D", "\u266D");
 }
 function convertToRomanInKey(chord, key, mode) {
-  const rootMatch = chord.match(/^[A-G](#|b)?/);
+  const rootMatch = chord.match(/^[A-G](♯|♭)?/);
   if (!rootMatch) return chord;
   const rootNote = rootMatch[0];
   const rootRoman = romanize(rootNote, key);
-  const onMatch = chord.match(/(?:on\s*|\/\s*)([A-G](#|b)?)/);
+  const onMatch = chord.match(/(?:on\s*|\/\s*)([A-G](♯|♭)?)/);
   let bassRoman = null;
   if (onMatch) {
     const bassNote = onMatch[1];
@@ -92,10 +92,19 @@ var sortRadios = document.querySelectorAll('input[name="sort"]');
 chordInput.addEventListener("input", updateOutput);
 sortRadios.forEach((radio) => radio.addEventListener("change", updateOutput));
 function normalizeAccidentals(input) {
-  return input.replace(/[＃♯]/g, "#").replace(/[ｂ♭]/g, "b");
+  return input.replace(/[#＃♯]/g, "\u266F").replace(/[bｂ♭]/g, "\u266D");
+}
+function splitLines(text) {
+  return text.split("\n");
 }
 function joinLines(lines) {
   return lines.join("\n");
+}
+function splitTokens(text) {
+  return text.split(/\s+/);
+}
+function joinTokens(lines) {
+  return lines.join(" ");
 }
 function createConverterOf(f) {
   return function(a, b) {
@@ -119,26 +128,13 @@ function keydataToString(keydata) {
   ${keydata.romanized}
   `;
 }
-function updateOutput() {
-  const sort_button = document.querySelector('input[name="sort"]:checked');
-  const sortMode = sort_button.value;
-  const allKeys = getAllKeys();
-  const keyDataCreators = allKeys.map((e) => makeKeyDataCreator(e.tonic, e.mode));
-  const rawChords = chordInput.value.trim();
-  const normalized = normalizeAccidentals(rawChords);
-  const keydata = keyDataCreators.map((creator) => creator(normalized));
-  sortByMode(sortMode)(keydata);
-  const romanized = keydata.map((e) => keydataToString(e));
-  const romanizedByKey = joinLines(romanized);
-  romanOutput.textContent = romanizedByKey;
-}
 function countAccidentalsInRoman(romanized) {
-  const matches = romanized.match(/[♯#♭]/g);
+  const matches = romanized.match(/[♯♭]/g);
   return matches ? matches.length : 0;
 }
 function getAllKeys() {
   const alphabets = ["C", "D", "E", "F", "G", "A", "B"];
-  const accidentals = ["", "#", "b"];
+  const accidentals = ["", "\u266F", "\u266D"];
   const modes = [
     "major"
     /*'minor'*/
@@ -157,10 +153,27 @@ function makeKeyDataCreator(tonic, mode) {
   return function(chords) {
     const displayKey = formatKeyName(tonic) + " " + mode;
     const fifthsIndex = getFifthsIndex(tonic, mode);
-    const romanized = chords.split("\n").map(
-      (e) => e.split(" ").map((chord) => convertToRomanInKey(chord, tonic, mode)).join(" ")
-    ).join("\n");
+    const lines = splitLines(chords);
+    const converted = lines.map((e) => {
+      const tokens = splitTokens(e);
+      const converted2 = tokens.map((chord) => convertToRomanInKey(chord, tonic, mode));
+      return joinTokens(converted2);
+    });
+    const romanized = joinLines(converted);
     const accidentalCountInRomanized = countAccidentalsInRoman(romanized);
     return { displayKey, romanized, accidentalCountInRomanized, tonic, mode, fifthsIndex };
   };
+}
+function updateOutput() {
+  const sort_button = document.querySelector('input[name="sort"]:checked');
+  const sortMode = sort_button.value;
+  const allKeys = getAllKeys();
+  const keyDataCreators = allKeys.map((e) => makeKeyDataCreator(e.tonic, e.mode));
+  const rawChords = chordInput.value.trim();
+  const normalized = normalizeAccidentals(rawChords);
+  const keydata = keyDataCreators.map((creator) => creator(normalized));
+  sortByMode(sortMode)(keydata);
+  const romanized = keydata.map((e) => keydataToString(e));
+  const romanizedByKey = joinLines(romanized);
+  romanOutput.textContent = romanizedByKey;
 }

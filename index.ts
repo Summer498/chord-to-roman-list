@@ -14,8 +14,8 @@ sortRadios.forEach(radio => radio.addEventListener('change', updateOutput));
 
 function normalizeAccidentals(input: string): string {
   return input
-    .replace(/[＃♯]/g, '#')  // 全角/音楽記号シャープ → #
-    .replace(/[ｂ♭]/g, 'b'); // 全角/音楽記号フラット → b
+    .replace(/[#＃♯]/g, '♯')  // 半角/全角/音楽記号シャープ → #
+    .replace(/[bｂ♭]/g, '♭'); // 半角/全角/音楽記号フラット → ♭
 }
 
 function splitLines(text: string): string[] {
@@ -58,13 +58,13 @@ function keydataToString(keydata: KeyDataEntry) {
 }
 
 function countAccidentalsInRoman(romanized: string): number {
-  const matches = romanized.match(/[♯#♭]/g);
+  const matches = romanized.match(/[♯♭]/g);
   return matches ? matches.length : 0;
 }
 
 function getAllKeys() {
   const alphabets = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-  const accidentals = ['', '#', 'b'];
+  const accidentals = ['', '♯', '♭'];
   const modes: Mode[] = ['major', /*'minor'*/];
 
   const allKeys: { tonic: string, mode: Mode }[] = [];
