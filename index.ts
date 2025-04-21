@@ -18,23 +18,43 @@ function normalizeAccidentals(input: string): string {
     .replace(/[ｂ♭]/g, 'b'); // 全角/音楽記号フラット → b
 }
 
-const sort_button = document.querySelector('input[name="sort"]:checked') as HTMLInputElement
-const sortMode = sort_button.value as SortMode;
-
-function getRomanOutput(normalized: string): string {
-  const chords = normalized.split(/\s+/);
-  const romanizedByKey = generateAllRomanNumerals(chords, sortMode);
-  return romanizedByKey
+function splitLines(text: string): string[] {
+  return text.split('\n');
 }
 
-function updateOutput(): void {
-  const rawChords = chordInput.value.trim()
-  const normalized = normalizeAccidentals(rawChords);
-  const lines = normalized.split('\n');
+function joinLines(lines: string[]) {
+  return lines.join("\n");
+}
 
-  const romanizedByKey = lines.map(e => getRomanOutput(e)).join("\n")
-  console.log(romanizedByKey)
-  romanOutput.textContent = romanizedByKey;
+function splitTokens(text: string): string[] {
+  return text.split(/\s+/);
+}
+
+function joinTokens(lines: string[]) {
+  return lines.join(' ');
+}
+
+function createConverterOf<T>(f: (a: T) => number) {
+  return function (a: T, b: T) { return f(a) - f(b) }
+}
+
+function sortByMode(sortMode: SortMode) {
+  return function (keydata: KeyDataEntry[]) {
+    if (sortMode === 'score') {
+      return keydata.sort(createConverterOf(e => countAccidentalsInRoman(e.romanized)));
+    } else if (sortMode === 'fifths') {
+      return keydata.sort(createConverterOf(e => e.fifthsIndex));
+    } else if (sortMode === 'alphabetical') {
+      return keydata.sort((a, b) => a.tonic.localeCompare(b.tonic));
+    }
+  }
+}
+
+function keydataToString(keydata: KeyDataEntry) {
+  return `
+  ${keydata.displayKey}:
+  ${keydata.romanized}
+  `
 }
 
 function countAccidentalsInRoman(romanized: string): number {
@@ -42,42 +62,61 @@ function countAccidentalsInRoman(romanized: string): number {
   return matches ? matches.length : 0;
 }
 
+function getAllKeys() {
+  const alphabets = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+  const accidentals = ['', '#', 'b'];
+  const modes: Mode[] = ['major', /*'minor'*/];
+
+  const allKeys: { tonic: string, mode: Mode }[] = [];
+
+  for (const tonic of alphabets) {
+    for (const acc of accidentals) {
+      for (const mode of modes) {
+        allKeys.push({ tonic: tonic + acc, mode });
+      }
+    }
+  }
+  return allKeys
+}
+
 interface KeyDataEntry {
   displayKey: string;
   romanized: string;
   accidentalCountInRomanized: number;
-  key: string;
+  tonic: string;
   mode: Mode;
   fifthsIndex: number;
 }
 
-function generateAllRomanNumerals(chords: string[], sortMode: SortMode): string {
-  const tonics = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-  const accidentals = ['', '#', 'b'];
-  const modes:Mode[] = ['major', /*'minor'*/];
-
-  const keyData: KeyDataEntry[] = [];
-
-  for (const tonic of tonics) {
-    for (const acc of accidentals) {
-      for (const mode of modes) {
-        const key = tonic + acc;
-        const displayKey = formatKeyName(key) + ' ' + mode;
-        const fifthsIndex = getFifthsIndex(key, mode);
-        const romanized = chords.map(chord => convertToRomanInKey(chord, key, mode)).join(' ');
-        const accidentalCountInRomanized = countAccidentalsInRoman(romanized);
-        keyData.push({ displayKey, romanized, accidentalCountInRomanized, key, mode, fifthsIndex });
-      }
-    }
+function makeKeyDataCreator(tonic: string, mode: Mode) {
+  return function (chords: string): KeyDataEntry {
+    const displayKey = formatKeyName(tonic) + ' ' + mode;
+    const fifthsIndex = getFifthsIndex(tonic, mode);
+    const lines = splitLines(chords)
+    const converted =
+      lines.map(e => {
+        const tokens = splitTokens(e)
+        const converted = tokens.map(chord => convertToRomanInKey(chord, tonic, mode))
+        return joinTokens(converted)
+      })
+    const romanized = joinLines(converted)
+    const accidentalCountInRomanized = countAccidentalsInRoman(romanized);
+    return { displayKey, romanized, accidentalCountInRomanized, tonic, mode, fifthsIndex };
   }
+}
 
-  if (sortMode === 'score') {
-    keyData.sort((a, b) => a.accidentalCountInRomanized - b.accidentalCountInRomanized);
-  } else if (sortMode === 'fifths') {
-    keyData.sort((a, b) => a.fifthsIndex - b.fifthsIndex);
-  } else if (sortMode === 'alphabetical') {
-    keyData.sort((a, b) => a.key.localeCompare(b.key) || a.mode.localeCompare(b.mode));
-  }
+function updateOutput(): void {
+  const sort_button = document.querySelector('input[name="sort"]:checked') as HTMLInputElement
+  const sortMode = sort_button.value as SortMode;
 
-  return keyData.map(({ displayKey, romanized }) => `${displayKey}:\n  ${romanized}`).join('\n\n');
+  const allKeys = getAllKeys()
+  const keyDataCreators = allKeys.map(e => makeKeyDataCreator(e.tonic, e.mode))
+
+  const rawChords = chordInput.value.trim()
+  const normalized = normalizeAccidentals(rawChords);
+  const keydata = keyDataCreators.map(creator => creator(normalized))
+  sortByMode(sortMode)(keydata);
+  const romanized = keydata.map(e => keydataToString(e));
+  const romanizedByKey = joinLines(romanized)
+  romanOutput.textContent = romanizedByKey;
 }
