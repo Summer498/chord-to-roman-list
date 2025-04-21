@@ -1,0 +1,17 @@
+{
+  "name": "chord-to-roman-list",
+  "version": "1.0.0",
+  "main": "index.js",
+  "packageManager": "yarn@1.22.22",
+  
+  "scripts": {
+    "build": "tsup index.ts --format esm,cjs"
+  },
+  "repository": "https://github.com/Summer498/chord-to-roman-list.git",
+  "author": "Summer498 <subore02@gmail.com>",
+  "license": "UNLICENCED",
+  "dependencies": {
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3"
+  }
+}

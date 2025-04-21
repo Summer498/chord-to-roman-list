@@ -1,41 +1,62 @@
-import { convertToRomanInKey, formatKeyName } from './romanizer.js';
-import { getKeySignatureAccidentals, getFifthsIndex } from './keydata.js';
+import { convertToRomanInKey, formatKeyName } from './src/romanizer';
+import { getKeySignatureAccidentals, getFifthsIndex } from './src/keydata';
 
 
-const chordInput = document.getElementById('chordInput');
-const romanOutput = document.getElementById('romanOutput');
-const sortRadios = document.querySelectorAll('input[name="sort"]');
+const chordInput = document.getElementById('chordInput') as HTMLTextAreaElement;
+const romanOutput = document.getElementById('romanOutput') as HTMLDivElement;
+const sortRadios = document.querySelectorAll<HTMLInputElement>('input[name="sort"]');
+
+type SortMode = 'alphabetical' | 'fifths' | 'score';
+type Mode = 'major' | 'minor'; // minor は一時的に無効化してるっぽいけど型には残す
 
 chordInput.addEventListener('input', updateOutput);
 sortRadios.forEach(radio => radio.addEventListener('change', updateOutput));
 
-function normalizeAccidentals(input) {
+function normalizeAccidentals(input: string): string {
   return input
     .replace(/[＃♯]/g, '#')  // 全角/音楽記号シャープ → #
     .replace(/[ｂ♭]/g, 'b'); // 全角/音楽記号フラット → b
 }
 
-function updateOutput() {
+const sort_button = document.querySelector('input[name="sort"]:checked') as HTMLInputElement
+const sortMode = sort_button.value as SortMode;
+
+function getRomanOutput(normalized: string): string {
+  const chords = normalized.split(/\s+/);
+  const romanizedByKey = generateAllRomanNumerals(chords, sortMode);
+  return romanizedByKey
+}
+
+function updateOutput(): void {
   const rawChords = chordInput.value.trim()
   const normalized = normalizeAccidentals(rawChords);
-  const chords = normalized.split(/\s+/);
-  const sortMode = document.querySelector('input[name="sort"]:checked').value;
-  const romanizedByKey = generateAllRomanNumerals(chords, sortMode);
+  const lines = normalized.split('\n');
+
+  const romanizedByKey = lines.map(e => getRomanOutput(e)).join("\n")
+  console.log(romanizedByKey)
   romanOutput.textContent = romanizedByKey;
 }
 
-function countAccidentalsInRoman(romanized) {
+function countAccidentalsInRoman(romanized: string): number {
   const matches = romanized.match(/[♯#♭]/g);
-  console.log(matches)
   return matches ? matches.length : 0;
 }
 
-function generateAllRomanNumerals(chords, sortMode) {
+interface KeyDataEntry {
+  displayKey: string;
+  romanized: string;
+  accidentalCountInRomanized: number;
+  key: string;
+  mode: Mode;
+  fifthsIndex: number;
+}
+
+function generateAllRomanNumerals(chords: string[], sortMode: SortMode): string {
   const tonics = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
   const accidentals = ['', '#', 'b'];
-  const modes = ['major', /*'minor'*/];
+  const modes:Mode[] = ['major', /*'minor'*/];
 
-  const keyData = [];
+  const keyData: KeyDataEntry[] = [];
 
   for (const tonic of tonics) {
     for (const acc of accidentals) {

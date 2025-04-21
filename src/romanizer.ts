@@ -1,25 +1,30 @@
-function pitchIndex(note) {
-  const chromatic = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  const enharmonics = {
+type Note = string;
+type Key = string;
+type RomanNumeral = string;
+type Mode = 'major' | 'minor'
+
+function pitchIndex(note: Note): number {
+  const chromatic: string[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const enharmonics: Record<string, string>  = {
     'Cb': 'B', 'Db': 'C#', 'Eb': 'D#', 'Fb': 'E', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#',
     'E#': 'F', 'B#': 'C'
   };
-  return chromatic.indexOf(enharmonics[note] || note);
+  return chromatic.indexOf(enharmonics[note] ?? note);
 }
 
-function romanize(note, key) {
+function romanize(note:Note, key:Key) {
   const tonicIndex = pitchIndex(key);
   const noteIndex = pitchIndex(note);
   const interval = (noteIndex - tonicIndex + 12) % 12;
-  const roughDegree = ['I', '♭II', 'II', '♭III', 'III', 'IV', '#IV', 'V', '♭VI', 'VI', '♭VII', 'VII'];
+  const roughDegree: RomanNumeral[] = ['I', '♭II', 'II', '♭III', 'III', 'IV', '#IV', 'V', '♭VI', 'VI', '♭VII', 'VII'];
   return roughDegree[interval];
 }
 
-export function formatKeyName(key) {
+export function formatKeyName(key: string):string {
   return key.replace('#', '\u266F').replace('b', '\u266D');
 }
 
-export function convertToRomanInKey(chord, key, mode) {
+export function convertToRomanInKey(chord:string, key:Key, mode:Mode):string {
   // ルート音を抽出
   const rootMatch = chord.match(/^[A-G](#|b)?/);
   if (!rootMatch) return chord;
@@ -28,7 +33,7 @@ export function convertToRomanInKey(chord, key, mode) {
 
   // ベース音を抽出（on表記 or /表記）
   const onMatch = chord.match(/(?:on\s*|\/\s*)([A-G](#|b)?)/);
-  let bassRoman = null;
+  let bassRoman: RomanNumeral | null = null;
   if (onMatch) {
     const bassNote = onMatch[1];
     bassRoman = romanize(bassNote, key);
